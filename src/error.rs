@@ -3,7 +3,7 @@
 // Code is licensed under Apache License, Version 2.0.
 
 #[derive(thiserror::Error, Debug)]
-pub enum RustExampleError {
+pub enum RvarietyError {
     #[error("Internal Error: {0}")]
     Internal(String),
 }
