@@ -18,9 +18,9 @@ struct Alphacoders {
 impl Index for Alphacoders {
     fn new(url: &'static str, pattern: &'static str, max_page: u32) -> Self {
         Alphacoders {
-            url,     //"https://wall.alphacoders.com"
-            pattern, //"https://wall.alphacoders.com/tags.php?tid={}&page={}"
-            max_page,
+            url,      //"https://wall.alphacoders.com"
+            pattern,  //"https://wall.alphacoders.com/tags.php?tid={}&page={}"
+            max_page, //2
         }
     }
     fn make_url(&self, tag: &'static str, page: u32) -> String {
@@ -30,7 +30,10 @@ impl Index for Alphacoders {
         n
     }
     fn make_filename(&self, url: &'static str, tag: &'static str) -> String {
-        let re = Regex::new(r"^https://[0-9a-z]+[\.](?P<m>[a-z]+)[\.](?P<y>[a-z]+)/\d+/(?P<f>\d+)[\.]jpg$").unwrap();
+        let re = Regex::new(
+            r"^https://[0-9a-z]+[\.](?P<m>[a-z]+)[\.](?P<y>[a-z]+)/\d+/(?P<f>\d+)[\.]jpg$",
+        )
+        .unwrap();
         let prefix = re.replace_all(url, "$m");
         let post = re.replace_all(url, "$y").to_string();
         let file = re.replace_all(url, "$f").to_string();
@@ -69,18 +72,19 @@ impl Index for Alphacoders {
                 });
             for u in uv {
                 let res = reqwest::blocking::get(&u)?;
-                assert!(res.status().is_success());
-                Document::from_read(res)
-                    .unwrap()
-                    .find(Name("a"))
-                    .filter_map(|n| n.attr("href"))
-                    .for_each(|x| {
-                        let re = Regex::new(r"^https://[0-9a-z.]*/\d*/\d*.jpg$").unwrap();
-                        if re.is_match(x) {
-                            println!("    pic={}", x);
-                            rv.push(x.to_string());
-                        }
-                    });
+                if res.status().is_success() {
+                    Document::from_read(res)
+                        .unwrap()
+                        .find(Name("a"))
+                        .filter_map(|n| n.attr("href"))
+                        .for_each(|x| {
+                            let re = Regex::new(r"^https://[0-9a-z.]*/\d*/\d*.jpg$").unwrap();
+                            if re.is_match(x) {
+                                println!("    pic={}", x);
+                                rv.push(x.to_string());
+                            }
+                        });
+                }
             }
             page += 1;
         }
@@ -98,7 +102,7 @@ mod tests {
         let r = Alphacoders::new(
             "https://wall.alphacoders.com",
             "https://wall.alphacoders.com/tags.php?tid={}&page={}",
-            2
+            2,
         );
         let u = r.make_url("2315", 1);
         assert_eq!(u, "https://wall.alphacoders.com/tags.php?tid=2315&page=1");
@@ -108,7 +112,7 @@ mod tests {
         let r = Alphacoders::new(
             "https://wall.alphacoders.com",
             "https://wall.alphacoders.com/tags.php?tid={}&page={}",
-            2
+            2,
         );
         let m = r.parse_urls("2315");
         println!("{:?}", m);
@@ -118,7 +122,7 @@ mod tests {
         let r = Alphacoders::new(
             "https://wall.alphacoders.com",
             "https://wall.alphacoders.com/tags.php?tid={}&page={}",
-            2
+            2,
         );
         let m = r.make_filename("https://images5.alphacoders.com/739/739383.jpg", "2315");
         println!("{}", m);
