@@ -6,6 +6,7 @@ extern crate reqwest;
 use regex::Regex;
 use select::document::Document;
 use select::predicate::Name;
+use anyhow::Result;
 
 use super::Index;
 
@@ -47,7 +48,7 @@ impl Index for Alphacoders {
         str.push_str(".jpg");
         str
     }
-    fn parse_urls(&self, tag: &'static str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    fn parse_urls(&self, tag: &'static str) -> Result<Vec<String>> {
         let mut rv = Vec::new();
         let mut page: u32 = 1;
         loop {
