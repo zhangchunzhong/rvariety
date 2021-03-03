@@ -1,4 +1,4 @@
-# rust-gh-example
+# variety in rust
 
 [![Crates.io](https://img.shields.io/crates/v/rust-gh-example.svg)](https://crates.io/crates/rust-gh-example)
 [![Docs.rs](https://docs.rs/rust-gh-example/badge.svg)](https://docs.rs/rust-gh-example)
