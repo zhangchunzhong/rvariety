@@ -3,12 +3,14 @@
 // Code is licensed under Apache License, Version 2.0.
 extern crate reqwest;
 
+use anyhow::Result;
 use regex::Regex;
 use select::document::Document;
 use select::predicate::Name;
-use anyhow::Result;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
-use super::Index;
+use super::*;
 
 struct Alphacoders {
     url: &'static str,
@@ -53,15 +55,23 @@ impl Index for Alphacoders {
         let mut page: u32 = 1;
         loop {
             let mut uv = Vec::new();
+            let timeout = Duration::from_secs(GET_URL_INTERVAL);
+            let instant = Instant::now();
             if page > self.max_page {
                 break;
             }
             let url = self.make_url(tag, page);
-            let res = reqwest::blocking::get(&url)?;
+            let client = reqwest::blocking::Client::builder()
+                .user_agent(APP_USER_AGENT)
+                .build()?;
+            let res = client.get(&url).send()?;
+            println!("page={}, url={}, res={:?}", page, url, res);
             if res.status().is_success() == false {
                 break;
             }
-            println!("page={}, url={}", page, url);
+            if timeout >= instant.elapsed() {
+                sleep(timeout - instant.elapsed());
+            }
             Document::from_read(res)
                 .unwrap()
                 .find(Name("a"))
@@ -72,7 +82,12 @@ impl Index for Alphacoders {
                     }
                 });
             for u in uv {
-                let res = reqwest::blocking::get(&u)?;
+                let instant = Instant::now();
+                let client = reqwest::blocking::Client::builder()
+                    .user_agent(APP_USER_AGENT)
+                    .build()?;
+                let res = client.get(&u).send()?;
+                //println!("\nurl={}\nres={:?}", u.to_string(), res);
                 if res.status().is_success() {
                     Document::from_read(res)
                         .unwrap()
@@ -85,6 +100,9 @@ impl Index for Alphacoders {
                                 rv.push(x.to_string());
                             }
                         });
+                }
+                if timeout >= instant.elapsed() {
+                    sleep(timeout - instant.elapsed());
                 }
             }
             page += 1;

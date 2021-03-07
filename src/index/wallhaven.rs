@@ -4,17 +4,20 @@
 
 extern crate reqwest;
 
+use anyhow::Result;
 use regex::Regex;
 use select::document::Document;
 use select::predicate::Name;
-use anyhow::Result;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
-use super::Index;
+use super::*;
 
 struct Wallhaven {
     //url: &'static str,
     pattern: &'static str,
     max_page: u32,
+    timeout:u64,
 }
 
 impl Index for Wallhaven {
@@ -23,6 +26,7 @@ impl Index for Wallhaven {
             //url,      //"https://wallhaven.cc/"
             pattern,  //"https://wallhaven.cc/search?q=id%3A{}&page={}"
             max_page, //2
+            timeout: 10,
         }
     }
     fn make_url(&self, tag: &'static str, page: u32) -> String {
@@ -32,7 +36,7 @@ impl Index for Wallhaven {
         n
     }
     fn make_filename(&self, url: &'static str, tag: &'static str) -> String {
-        let re = Regex::new(r"\w+-\w+[\.][j|p][p|n]g$",).unwrap();
+        let re = Regex::new(r"\w+-\w+[\.][j|p][p|n]g$").unwrap();
         let cap = re.captures(url).unwrap();
         let mut str = "wallhaven_cc_tag_".to_string();
         str.push_str(tag);
@@ -48,10 +52,19 @@ impl Index for Wallhaven {
             if page > self.max_page {
                 break;
             }
+            let timeout = Duration::from_secs(self.timeout);
+            let instant = Instant::now();
             let url = self.make_url(tag, page);
-            let res = reqwest::blocking::get(&url)?;
+            let client = reqwest::blocking::Client::builder()
+                .user_agent(APP_USER_AGENT)
+                .cookie_store(true)
+                .build()?;
+            let res = client.get(&url).send()?;
             if res.status().is_success() == false {
                 break;
+            }
+            if timeout >= instant.elapsed() {
+                sleep(timeout - instant.elapsed());
             }
             println!("page={}, url={}", page, url);
             Document::from_read(res)
@@ -64,18 +77,25 @@ impl Index for Wallhaven {
                     }
                 });
             for u in uv {
-                let res = reqwest::blocking::get(&u)?;
+                //let instant = Instant::now();
+                let client = reqwest::blocking::Client::builder()
+                    .user_agent(APP_USER_AGENT)
+                    .build()?;
+                let res = client.get(&u).send()?;
                 if res.status().is_success() {
                     let document = Document::from_read(res).unwrap();
                     for node in document.find(Name("img")) {
                         if node.attr("id").is_some() {
-                            if node.attr("data-cfsrc").is_some() {
-                                rv.push(node.attr("data-cfsrc").unwrap().to_string());
+                            if node.attr("id").unwrap() == "wallpaper" {
+                                if node.attr("src").is_some() {
+                                    rv.push(node.attr("src").unwrap().to_string());
+                                }
                             }
                         }
-
                     }
-
+                }
+                if timeout >= instant.elapsed() {
+                    sleep(timeout - instant.elapsed());
                 }
             }
             page += 1;
